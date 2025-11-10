@@ -76,6 +76,8 @@ def meal_add(  # Add meal tool with nutrition breakdown
     IMPORTANT: Before adding a meal, always check existing meals for the date using meals_list() to avoid duplicates.
     DO NOT create entries named "Daily Total" or "Total" - these are automatically calculated in the daily_totals collection.
     
+    REQUIRED FIELDS: All meals MUST include fat_g, healthy_fat_g, and unhealthy_fat_g values. Never omit fat information.
+    
     Args:
       name: meal name (e.g., "Tuna Rice Bowl", "Protein Bar")
       calories: numeric calories
@@ -83,12 +85,12 @@ def meal_add(  # Add meal tool with nutrition breakdown
       date: YYYY-MM-DD (optional, defaults to today UTC)
       protein_g: protein grams
       carbs_g: carbohydrate grams
-      fat_g: total fat grams (must equal healthy_fat_g + unhealthy_fat_g)
-      healthy_fat_g: healthy fat grams
-      unhealthy_fat_g: unhealthy fat grams
+      fat_g: REQUIRED - total fat grams (must equal healthy_fat_g + unhealthy_fat_g)
+      healthy_fat_g: REQUIRED - healthy fat grams (e.g., from avocado, nuts, olive oil)
+      unhealthy_fat_g: REQUIRED - unhealthy fat grams (e.g., saturated/trans fats)
     Returns: inserted meal document
     
-    Note: Daily totals are automatically recalculated after adding a meal.
+    Note: Daily totals are automatically recalculated after adding a meal. All fat values are included in totals.
     """
     ing_list = _parse_ingredients(ingredients)  # Normalize ingredients to list[str]
     doc = add_meal(  # Insert meal with nutrition fields
@@ -114,6 +116,7 @@ def meals_list(date: Optional[str] = None):  # List meals for date
     
     Returns: List of all meal documents for the date, sorted by name.
     Each meal includes: name, calories, ingredients, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g.
+    All meals MUST have fat_g, healthy_fat_g, and unhealthy_fat_g values - verify these are present.
     """
     docs = list_meals_by_date(date)  # Query meals
     for d in docs:  # Normalize ObjectIds
@@ -144,6 +147,7 @@ def total_get(date: Optional[str] = None):  # Get daily totals
     total_healthy_fat_g, total_unhealthy_fat_g, meal_names (list).
     
     CRITICAL: Always call this to verify totals match expected calculations.
+    When displaying results, ALWAYS show all three fat values: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g.
     If totals are wrong, check meals_list() to see if there are duplicate meals or incorrect entries.
     """
     doc = get_daily_total(date)  # Read total from DB
@@ -203,6 +207,9 @@ def meal_update(  # Update meal tool
     IMPORTANT: Always call meals_list() first to verify the meal exists before updating.
     Only fields you provide will be updated - other fields remain unchanged.
     
+    REQUIRED: When updating fat information, always provide fat_g, healthy_fat_g, and unhealthy_fat_g together.
+    Ensure fat_g equals healthy_fat_g + unhealthy_fat_g.
+    
     Args:
       name: meal name (required - identifies which meal to update)
       date: YYYY-MM-DD (optional, defaults to today UTC)
@@ -210,13 +217,13 @@ def meal_update(  # Update meal tool
       ingredients: list or comma-separated string (optional)
       protein_g: protein grams (optional)
       carbs_g: carbohydrate grams (optional)
-      fat_g: total fat grams (optional)
-      healthy_fat_g: healthy fat grams (optional)
-      unhealthy_fat_g: unhealthy fat grams (optional)
+      fat_g: REQUIRED when updating fats - total fat grams (must equal healthy_fat_g + unhealthy_fat_g)
+      healthy_fat_g: REQUIRED when updating fats - healthy fat grams (e.g., from avocado, nuts, olive oil)
+      unhealthy_fat_g: REQUIRED when updating fats - unhealthy fat grams (e.g., saturated/trans fats)
     
     Returns: updated meal document, or None if meal not found.
     
-    Note: Daily totals are automatically recalculated after updating a meal.
+    Note: Daily totals are automatically recalculated after updating a meal. All fat values are included in totals.
     """
     ing_list = None
     if ingredients is not None:

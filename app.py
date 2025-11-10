@@ -58,7 +58,7 @@ OPENAI_TOOLS: List[Dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "meal_add",
-            "description": "Add a meal with calories, ingredients, and nutrition. ALWAYS call meals_list() first to check for duplicates.",
+            "description": "Add a meal with calories, ingredients, and nutrition. ALWAYS call meals_list() first to check for duplicates. REQUIRED: Always provide fat_g, healthy_fat_g, and unhealthy_fat_g values.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -73,9 +73,9 @@ OPENAI_TOOLS: List[Dict[str, Any]] = [
                     "date": {"type": "string", "description": "YYYY-MM-DD"},
                     "protein_g": {"type": "number", "default": 0},
                     "carbs_g": {"type": "number", "default": 0},
-                    "fat_g": {"type": "number", "default": 0},
-                    "healthy_fat_g": {"type": "number", "default": 0},
-                    "unhealthy_fat_g": {"type": "number", "default": 0},
+                    "fat_g": {"type": "number", "description": "REQUIRED: Total fat grams. Must equal healthy_fat_g + unhealthy_fat_g", "default": 0},
+                    "healthy_fat_g": {"type": "number", "description": "REQUIRED: Healthy fat grams (e.g., from avocado, nuts, olive oil)", "default": 0},
+                    "unhealthy_fat_g": {"type": "number", "description": "REQUIRED: Unhealthy fat grams (e.g., saturated/trans fats)", "default": 0},
                 },
                 "required": ["name", "calories", "ingredients"],
             },
@@ -140,7 +140,7 @@ OPENAI_TOOLS: List[Dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "total_get",
-            "description": "Get daily total calories and nutrition for a date (default: today). ALWAYS call this to verify totals match expected calculations.",
+            "description": "Get daily total calories and nutrition for a date (default: today). ALWAYS call this to verify totals match expected calculations. Returns: total_calories, total_protein_g, total_carbs_g, total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g. When displaying, ALWAYS show all three fat values.",
             "parameters": {"type": "object", "properties": {"date": {"type": "string"}}},
         },
     },
@@ -377,9 +377,12 @@ CRITICAL DATABASE OPERATION RULES:
    - DO NOT create meal entries named "Daily Total", "Total", or similar
    - Only create actual meal entries (e.g., "Tuna Rice Bowl", "Protein Bar")
 
-3. CALCULATION ACCURACY:
+3. CALCULATION ACCURACY AND REQUIRED FIELDS:
+   - ALL meals MUST include: calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
+   - These fields are REQUIRED for every meal - never omit fat information
    - When calculating totals, manually sum: calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
    - ALWAYS verify calculations: fat_g MUST equal healthy_fat_g + unhealthy_fat_g
+   - When displaying meal information or totals, ALWAYS show: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
    - After any insert/update/delete, call total_get(date) to verify the database totals match your calculations
    - If totals are wrong, check meals_list() for duplicate entries or incorrect data
 
@@ -389,17 +392,27 @@ CRITICAL DATABASE OPERATION RULES:
    - If needed, delete all meals for a date using meals_delete_all() and start fresh
    - You have FULL PERMISSION to delete and update anything - use it when data is wrong
 
-5. DATABASE STRUCTURE:
-   - meals collection: Individual meal entries (name, calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g)
-   - daily_totals collection: Automatically calculated totals (total_calories, total_protein_g, total_carbs_g, total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g)
+5. DATABASE STRUCTURE AND REQUIRED FIELDS:
+   - meals collection: Individual meal entries MUST include: name, calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
+   - daily_totals collection: Automatically calculated totals include: total_calories, total_protein_g, total_carbs_g, total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
+   - CRITICAL: When adding or updating meals, ALWAYS provide fat_g, healthy_fat_g, and unhealthy_fat_g values
+   - CRITICAL: When displaying totals, ALWAYS show total_fat_g, total_healthy_fat_g, and total_unhealthy_fat_g
    - Daily totals are recalculated automatically when meals are added/updated/deleted
 
 6. WORKFLOW FOR UPDATING TOTALS:
    - Step 1: Call meals_list(date) to see current meals
    - Step 2: Identify and delete any incorrect/duplicate entries
-   - Step 3: Add or update correct meal entries
+   - Step 3: Add or update correct meal entries (ALWAYS include fat_g, healthy_fat_g, unhealthy_fat_g)
    - Step 4: Call total_get(date) to verify totals match expected calculations
-   - Step 5: If totals are still wrong, check meals_list() again for remaining issues
+   - Step 5: When displaying results, ALWAYS show: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
+   - Step 6: If totals are still wrong, check meals_list() again for remaining issues
+
+7. FAT TRACKING REQUIREMENTS:
+   - Every meal MUST have fat_g (total fat), healthy_fat_g, and unhealthy_fat_g values
+   - Never add a meal without all three fat values - if unknown, estimate or ask the user
+   - When showing daily totals, ALWAYS display all three: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
+   - The sum of healthy_fat_g + unhealthy_fat_g MUST equal fat_g for each meal
+   - The sum of total_healthy_fat_g + total_unhealthy_fat_g MUST equal total_fat_g in daily totals
 
 You have FULL PERMISSION to insert, update, and delete everything. Be proactive in fixing data issues. Always verify calculations and database state before and after operations."""
             }
