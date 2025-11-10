@@ -1,0 +1,30 @@
+# MongoDB driver to talk to your Mongo database
+pymongo>=4.7
+
+# Load environment variables from a .env file
+python-dotenv>=1.0.1
+
+# OpenAI SDK used by main.py for chatting
+openai>=1.52.0
+
+# MCP stdio server framework to expose DB tools to your LLM client
+mcp>=1.21.0
+
+# HTTP server to proxy OpenAI-compatible requests for LibreChat
+fastapi>=0.115.0
+uvicorn>=0.30.0
+
+# Data validation and serialization (required by FastAPI and OpenAI)
+pydantic>=2.12.0
+pydantic-core>=2.41.0
+pydantic-settings>=2.11.0
+
+# Type hints and annotations (required by pydantic and other packages)
+typing-extensions>=4.15.0
+typing-inspection>=0.4.2
+
+# Rust-based data structures (required by jsonschema/referencing)
+rpds-py>=0.28.0
+
+# JSON parsing library (required by OpenAI SDK)
+jiter>=0.11.0
