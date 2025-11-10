@@ -58,7 +58,7 @@ OPENAI_TOOLS: List[Dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "meal_add",
-            "description": "Add a meal with calories, ingredients, and nutrition. ALWAYS call meals_list() first to check for duplicates. REQUIRED: Always provide fat_g, healthy_fat_g, and unhealthy_fat_g values.",
+            "description": "Add a meal with calories, ingredients, and nutrition. ALWAYS call meals_list() first to check for duplicates. CRITICAL: If fat_g > 0, you MUST provide healthy_fat_g and unhealthy_fat_g that sum to fat_g. NEVER set both to 0 when fat exists - break down based on ingredients!",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -74,8 +74,8 @@ OPENAI_TOOLS: List[Dict[str, Any]] = [
                     "protein_g": {"type": "number", "default": 0},
                     "carbs_g": {"type": "number", "default": 0},
                     "fat_g": {"type": "number", "description": "REQUIRED: Total fat grams. Must equal healthy_fat_g + unhealthy_fat_g", "default": 0},
-                    "healthy_fat_g": {"type": "number", "description": "REQUIRED: Healthy fat grams (e.g., from avocado, nuts, olive oil)", "default": 0},
-                    "unhealthy_fat_g": {"type": "number", "description": "REQUIRED: Unhealthy fat grams (e.g., saturated/trans fats)", "default": 0},
+                    "healthy_fat_g": {"type": "number", "description": "REQUIRED when fat_g > 0: Healthy fat grams from avocado, nuts, olive oil, fish, natural sources. Must be > 0 if fat_g > 0.", "default": 0},
+                    "unhealthy_fat_g": {"type": "number", "description": "REQUIRED when fat_g > 0: Unhealthy fat grams from processed foods, fried foods, saturated/trans fats. Must be > 0 if fat_g > 0.", "default": 0},
                 },
                 "required": ["name", "calories", "ingredients"],
             },
@@ -380,11 +380,14 @@ CRITICAL DATABASE OPERATION RULES:
 3. CALCULATION ACCURACY AND REQUIRED FIELDS:
    - ALL meals MUST include: calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
    - These fields are REQUIRED for every meal - never omit fat information
+   - CRITICAL: If fat_g > 0, you MUST calculate healthy_fat_g and unhealthy_fat_g - NEVER leave both as 0!
    - When calculating totals, manually sum: calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
    - ALWAYS verify calculations: fat_g MUST equal healthy_fat_g + unhealthy_fat_g
-   - When displaying meal information or totals, ALWAYS show: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
+   - When displaying meal information, show EACH meal ONCE with: name, calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
+   - When displaying totals, ALWAYS show: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g (use actual database values)
    - After any insert/update/delete, call total_get(date) to verify the database totals match your calculations
    - If totals are wrong, check meals_list() for duplicate entries or incorrect data
+   - If meals have fat_g > 0 but healthy_fat_g = 0 and unhealthy_fat_g = 0, you MUST update them with proper breakdowns
 
 4. FIXING INCORRECT DATA:
    - If totals are doubled or incorrect, first call meals_list(date) to see ALL entries
@@ -402,17 +405,54 @@ CRITICAL DATABASE OPERATION RULES:
 6. WORKFLOW FOR UPDATING TOTALS:
    - Step 1: Call meals_list(date) to see current meals
    - Step 2: Identify and delete any incorrect/duplicate entries
-   - Step 3: Add or update correct meal entries (ALWAYS include fat_g, healthy_fat_g, unhealthy_fat_g)
-   - Step 4: Call total_get(date) to verify totals match expected calculations
-   - Step 5: When displaying results, ALWAYS show: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
-   - Step 6: If totals are still wrong, check meals_list() again for remaining issues
+   - Step 3: Check each meal - if fat_g > 0 but healthy_fat_g = 0 and unhealthy_fat_g = 0, UPDATE the meal with proper fat breakdown
+   - Step 4: Add or update correct meal entries (ALWAYS include fat_g, healthy_fat_g, unhealthy_fat_g with proper breakdowns)
+   - Step 5: Call total_get(date) to verify totals match expected calculations
+   - Step 6: When displaying results, show EACH meal ONCE with all fat values, then show totals with all three fat values
+   - Step 7: If totals are still wrong, check meals_list() again for remaining issues
 
-7. FAT TRACKING REQUIREMENTS:
+7. FAT TRACKING REQUIREMENTS - CRITICAL:
    - Every meal MUST have fat_g (total fat), healthy_fat_g, and unhealthy_fat_g values
-   - Never add a meal without all three fat values - if unknown, estimate or ask the user
+   - NEVER set healthy_fat_g or unhealthy_fat_g to 0 if fat_g > 0 - you MUST break down the fat!
+   - When fat_g > 0, you MUST calculate healthy_fat_g and unhealthy_fat_g based on ingredients
+   
+   FAT BREAKDOWN GUIDELINES:
+   - Healthy fats come from: avocado, nuts, seeds, olive oil, fish (especially fatty fish like tuna/salmon), 
+     coconut oil (in moderation), natural sources
+   - Unhealthy fats come from: processed foods, fried foods, saturated fats, trans fats, 
+     hydrogenated oils, processed meats, high-fat dairy products
+   - For mixed meals, estimate based on ingredients:
+     * Example: Tuna Rice Bowl with avocado = mostly healthy fats from tuna and avocado
+     * Example: Protein Bar = may have some unhealthy fats from processing
+   - If unsure, make reasonable estimates based on ingredients - NEVER leave as 0 if fat exists
+   
+   DISPLAY REQUIREMENTS:
+   - When displaying meals, show EACH meal ONCE (no duplicates, no "*2" notation)
+   - List meals separately with clear formatting - each meal gets its own section
+   - For each meal, ALWAYS show: name, calories, protein_g, carbs_g, fat_g, healthy_fat_g, unhealthy_fat_g
+   - Use ACTUAL values from the database - if healthy_fat_g or unhealthy_fat_g are 0 but fat_g > 0, you MUST update the meal first
    - When showing daily totals, ALWAYS display all three: total_fat_g, total_healthy_fat_g, total_unhealthy_fat_g
    - The sum of healthy_fat_g + unhealthy_fat_g MUST equal fat_g for each meal
    - The sum of total_healthy_fat_g + total_unhealthy_fat_g MUST equal total_fat_g in daily totals
+   - If you see meals with fat_g > 0 but healthy_fat_g = 0 and unhealthy_fat_g = 0, UPDATE them with proper breakdowns BEFORE displaying
+   - Example format:
+     Meal 1:
+     - Name: Tuna Rice Bowl
+     - Calories: 700
+     - Protein: 39g
+     - Carbs: 65g
+     - Fat: 24g
+     - Healthy Fat: 16g
+     - Unhealthy Fat: 8g
+     
+     Meal 2:
+     - Name: Protein Bar
+     - Calories: 274
+     - Protein: 30g
+     - Carbs: 17g
+     - Fat: 8g
+     - Healthy Fat: 4g
+     - Unhealthy Fat: 4g
 
 You have FULL PERMISSION to insert, update, and delete everything. Be proactive in fixing data issues. Always verify calculations and database state before and after operations."""
             }

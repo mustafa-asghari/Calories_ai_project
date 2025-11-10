@@ -78,6 +78,9 @@ def meal_add(  # Add meal tool with nutrition breakdown
     
     REQUIRED FIELDS: All meals MUST include fat_g, healthy_fat_g, and unhealthy_fat_g values. Never omit fat information.
     
+    CRITICAL FAT BREAKDOWN RULE: If fat_g > 0, you MUST provide healthy_fat_g and unhealthy_fat_g values that sum to fat_g.
+    NEVER set both healthy_fat_g and unhealthy_fat_g to 0 when fat_g > 0 - you MUST break down the fat based on ingredients!
+    
     Args:
       name: meal name (e.g., "Tuna Rice Bowl", "Protein Bar")
       calories: numeric calories
@@ -86,8 +89,8 @@ def meal_add(  # Add meal tool with nutrition breakdown
       protein_g: protein grams
       carbs_g: carbohydrate grams
       fat_g: REQUIRED - total fat grams (must equal healthy_fat_g + unhealthy_fat_g)
-      healthy_fat_g: REQUIRED - healthy fat grams (e.g., from avocado, nuts, olive oil)
-      unhealthy_fat_g: REQUIRED - unhealthy fat grams (e.g., saturated/trans fats)
+      healthy_fat_g: REQUIRED when fat_g > 0 - healthy fat grams from avocado, nuts, olive oil, fish, natural sources
+      unhealthy_fat_g: REQUIRED when fat_g > 0 - unhealthy fat grams from processed foods, fried foods, saturated/trans fats
     Returns: inserted meal document
     
     Note: Daily totals are automatically recalculated after adding a meal. All fat values are included in totals.
